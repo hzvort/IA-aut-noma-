@@ -37,12 +37,6 @@ except ImportError:
     cmd_screen = None
 
 try:
-    from Funciones_NoIA.cuerpo import VirtualPet
-except ImportError:
-    VirtualPet = None
-    print("⚠️ ADVERTENCIA: 'cuerpo.py' no encontrado o error al importar. La mascota no funcionará.")
-
-try:
     from Funciones_NoIA.notion import CerebroNotion
 except ImportError:
     CerebroNotion = None
@@ -95,81 +89,8 @@ except:
     kernel32 = None
     user32 = None
 
+
 # --- 2. GESTIÓN DE ESTADO GLOBAL (CLASE CONTEXTO) ---
-
-class MockMessage:
-    def __init__(self, bot, chat_id, text):
-        self.bot = bot
-        self.chat_id = chat_id
-        self.text = text
-        self.voice = None
-        self.photo = []
-        self.caption = None
-        self.document = None
-        self.comando_pendiente = None
-        self.from_user = type('obj', (object,), {'id': chat_id})
-
-    async def reply_text(self, text, parse_mode=None):
-        # Muestra en consola y mascota
-        if ctx.pet: ctx.pet.speak(text)
-        try:
-            await self.bot.send_message(chat_id=self.chat_id, text=f"💻 Iris: {text}", parse_mode=parse_mode)
-        except:
-            await self.bot.send_message(chat_id=self.chat_id, text=f"💻 Iris: {text}")
-
-class MockUpdate:
-    def __init__(self, bot, chat_id, text):
-        self.message = MockMessage(bot, chat_id, text)
-        self.effective_user = type('obj', (object,), {'id': chat_id})
-        self.effective_chat = type('obj', (object,), {'id': chat_id})
-        self.effective_message = self.message
-
-class MockContext:
-    def __init__(self, app):
-        self.bot = app.bot
-        self.application = app
-
-def puente_mascota(texto):
-    if ctx.loop and ctx.app:
-        asyncio.run_coroutine_threadsafe(procesar_mensaje_mascota(texto), ctx.loop)
-
-async def procesar_mensaje_mascota(texto):
-    print(f"Iris: {texto}")
-    
-    fake_update = MockUpdate(ctx.app.bot, MY_ID_TELEGRAM, texto)
-    fake_context = MockContext(ctx.app) # Contexto falso seguro
-
-    if texto.startswith("/"):
-        comando = texto.split()[0].lower()
-        
-        if comando == "/aceptar":
-            await comando_aceptar(fake_update, fake_context)
-            ctx.pet.speak("✅ Aceptado.")
-            return
-        elif comando == "/voz":
-            await cmd_voz(fake_update, fake_context)
-            estado = "ON" if ctx.tts_activo else "OFF"
-            ctx.pet.speak(f"Voz {estado}.")
-            return
-        elif comando == "/sh":
-            await cmd_silencio(fake_update, fake_context)
-            ctx.pet.speak("🤫")
-            return
-        elif comando == "/close":
-            ctx.pet.speak("Bye!")
-            await asyncio.sleep(1)
-            await cmd_close(fake_update, fake_context)
-            return
-        elif comando == "/reiniciar":
-            await cmd_reiniciar(fake_update, fake_context)
-            ctx.pet.speak("Memoria reiniciada.")
-            return
-    respuesta = await groq_agent_loop(texto, fake_update, fake_context)
-    
-    if respuesta:
-        if ctx.pet: ctx.pet.speak(respuesta)
-        if ctx.tts_activo:
-            asyncio.create_task(hablar_pc(respuesta))
 
 class BotContext:
     def __init__(self):
@@ -180,11 +101,6 @@ class BotContext:
         self.soul: str = ""
         self.app = None
         self.loop = None
-
-        if VirtualPet:
-            self.pet = VirtualPet(gif_path="iris.gif", scale=0.3, callback_func=puente_mascota)
-        else:
-            self.pet = None
 
 ctx = BotContext()
 
@@ -874,21 +790,6 @@ async def cmd_help(u: Update, c):
     )
     await u.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
 
-async def cmd_cuerpo(u: Update, c):
-    if not acceso_autorizado(u):
-        return
-
-    if not ctx.pet:
-        await u.message.reply_text("❌ Error: Módulo de mascota no cargado.")
-        return
-
-    if ctx.pet.is_running:
-        msg = ctx.pet.hide()
-        await u.message.reply_text(f"{msg}")
-    else:
-        msg = ctx.pet.show()
-        await u.message.reply_text(f"{msg}")
-    
 async def post_init(application):
     ctx.app = application
     ctx.loop = asyncio.get_running_loop()
@@ -917,7 +818,7 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("close", cmd_close))
     app.add_handler(CommandHandler("screen", cmd_screen))
     app.add_handler(CommandHandler("status", cmd_status))
-    app.add_handler(CommandHandler("cuerpo", cmd_cuerpo))
+#    app.add_handler(CommandHandler("cuerpo", cmd_cuerpo))
 
     if cmd_screen: app.add_handler(CommandHandler("screen", cmd_screen))
     if comando_foto: app.add_handler(CommandHandler("foto", comando_foto))
